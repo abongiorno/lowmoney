@@ -15,8 +15,8 @@ import {
 
 import { demoApi } from './demoApiService';
 
-// Demo mode flag - set to true to use demo data without backend
-const DEMO_MODE = true;
+// Demo mode flag - set to false for production with Azure Cosmos DB
+const DEMO_MODE = false;
 
 // Create axios instance for when we have real backend
 const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168');

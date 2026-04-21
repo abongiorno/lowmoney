@@ -1,0 +1,49 @@
+{
+  "routes": [
+    {
+      "route": "/login",
+      "rewrite": "/login.html"
+    },
+    {
+      "route": "/register", 
+      "rewrite": "/register.html"
+    },
+    {
+      "route": "/products",
+      "rewrite": "/products.html"
+    },
+    {
+      "route": "/supermarkets",
+      "rewrite": "/supermarkets.html"
+    },
+    {
+      "route": "/profile",
+      "rewrite": "/profile.html"
+    },
+    {
+      "route": "/admin",
+      "rewrite": "/admin.html"
+    },
+    {
+      "route": "/*",
+      "rewrite": "/index.html"
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/assets/*", "/api/*"]
+  },
+  "mimeTypes": {
+    ".json": "application/json",
+    ".js": "text/javascript",
+    ".css": "text/css"
+  },
+  "globalHeaders": {
+    "Cache-Control": "public, max-age=31536000, immutable"
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/index.html"
+    }
+  }
+}

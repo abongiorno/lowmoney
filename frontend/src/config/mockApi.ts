@@ -1,7 +1,7 @@
-// Mock API Configuration for LowMoney
+// Azure Cosmos DB Configuration for LowMoney
 export const API_CONFIG = {
-  // MockAPI.io endpoint (create account and project at mockapi.io)
-  BASE_URL: 'https://667a123456789.mockapi.io/api/v1', // Replace with your MockAPI URL
+  // Azure Functions API endpoint
+  BASE_URL: 'https://lowmoney-functions.azurewebsites.net/api', // Azure Functions URL
   ENDPOINTS: {
     AUTH: {
       REGISTER: '/auth/register',
