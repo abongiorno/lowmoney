@@ -13,8 +13,12 @@ import {
   ApiResponse 
 } from '../types';
 
-// Create axios instance
-// Switch between local development and production
+import { demoApi } from './demoApiService';
+
+// Demo mode flag - set to true to use demo data without backend
+const DEMO_MODE = true;
+
+// Create axios instance for when we have real backend
 const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168');
 const baseURL = isDevelopment 
   ? 'http://192.168.1.24:5001/api'
@@ -27,7 +31,7 @@ const api: AxiosInstance = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token') || localStorage.getItem('lowmoney_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -49,16 +53,25 @@ api.interceptors.response.use(
 // Auth API
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<ApiResponse<{ user: User; token: string }>> => {
+    if (DEMO_MODE) {
+      return await demoApi.login(credentials.email, credentials.password);
+    }
     const response = await api.post('/auth/login', credentials);
     return response.data;
   },
 
   register: async (data: RegisterData): Promise<ApiResponse<{ user: User; token: string }>> => {
+    if (DEMO_MODE) {
+      return await demoApi.register(data);
+    }
     const response = await api.post('/auth/register', data);
     return response.data;
   },
 
   getCurrentUser: async (): Promise<ApiResponse<User>> => {
+    if (DEMO_MODE) {
+      return await demoApi.getProfile();
+    }
     const response = await api.get('/auth/me');
     return response.data;
   },
@@ -90,21 +103,35 @@ export const usersApi = {
 // Products API
 export const productsApi = {
   getAllProducts: async (params?: { search?: string; category?: string; page?: number; limit?: number }): Promise<ApiResponse<Product[]>> => {
+    if (DEMO_MODE) {
+      return await demoApi.getProducts(params?.search);
+    }
     const response = await api.get('/products', { params });
     return response.data;
   },
 
   getProductById: async (productId: string): Promise<ApiResponse<Product>> => {
+    if (DEMO_MODE) {
+      const products = await demoApi.getProducts();
+      const product = products.data.find((p: any) => p.id === productId);
+      return { success: true, data: product };
+    }
     const response = await api.get(`/products/${productId}`);
     return response.data;
   },
 
   getProductByBarcode: async (barcode: string): Promise<ApiResponse<Product>> => {
+    if (DEMO_MODE) {
+      return await demoApi.getProductByBarcode(barcode);
+    }
     const response = await api.get(`/products/barcode/${barcode}`);
     return response.data;
   },
 
   createProduct: async (data: ProductFormData): Promise<ApiResponse<Product>> => {
+    if (DEMO_MODE) {
+      return await demoApi.createProduct(data);
+    }
     const response = await api.post('/products', data);
     return response.data;
   },
@@ -123,11 +150,17 @@ export const productsApi = {
 // Supermarkets API
 export const supermarketsApi = {
   getAllSupermarkets: async (params?: { city?: string; search?: string; page?: number; limit?: number }): Promise<ApiResponse<Supermarket[]>> => {
+    if (DEMO_MODE) {
+      return await demoApi.getSupermarkets();
+    }
     const response = await api.get('/supermarkets', { params });
     return response.data;
   },
 
   getNearbySupermarkets: async (lat: number, lon: number, radius?: number): Promise<ApiResponse<Supermarket[]>> => {
+    if (DEMO_MODE) {
+      return await demoApi.getNearbySupermarkets(lat, lon, radius);
+    }
     const response = await api.get('/supermarkets/nearby', {
       params: { lat, lon, radius }
     });
@@ -153,41 +186,69 @@ export const supermarketsApi = {
 // Prices API
 export const pricesApi = {
   reportPrice: async (data: PriceReportData): Promise<ApiResponse<Price>> => {
+    if (DEMO_MODE) {
+      return await demoApi.createPriceReport(data);
+    }
     const response = await api.post('/prices/report', data);
     return response.data;
   },
 
   getProductPrices: async (productId: string, params?: { status?: string; page?: number; limit?: number }): Promise<ApiResponse<Price[]>> => {
+    if (DEMO_MODE) {
+      return await demoApi.getPricesByProduct(productId);
+    }
     const response = await api.get(`/prices/product/${productId}`, { params });
     return response.data;
   },
 
   getProductHistory: async (productId: string, params?: { supermarketId?: string; page?: number; limit?: number }): Promise<ApiResponse<PriceHistory[]>> => {
+    if (DEMO_MODE) {
+      // Return empty history for demo
+      return { success: true, data: [] };
+    }
     const response = await api.get(`/prices/history/${productId}`, { params });
     return response.data;
   },
 
   getPendingPrices: async (params?: { page?: number; limit?: number }): Promise<ApiResponse<Price[]>> => {
+    if (DEMO_MODE) {
+      return await demoApi.getPendingPrices();
+    }
     const response = await api.get('/prices/pending', { params });
     return response.data;
   },
 
   approvePrice: async (priceId: string, approve: boolean, productId: string): Promise<ApiResponse<Price>> => {
+    if (DEMO_MODE) {
+      // Demo: just return success
+      return { success: true, data: null as any };
+    }
     const response = await api.patch(`/prices/${priceId}/approve`, { approve, productId });
     return response.data;
   },
 
   getUserReports: async (params?: { page?: number; limit?: number }): Promise<ApiResponse<Price[]>> => {
+    if (DEMO_MODE) {
+      // Demo: return user's prices
+      const prices = JSON.parse(localStorage.getItem('lowmoney_prices') || '[]');
+      return { success: true, data: prices };
+    }
     const response = await api.get('/prices/my-reports', { params });
     return response.data;
   },
 
   getUserApprovals: async (params?: { page?: number; limit?: number }): Promise<ApiResponse<Price[]>> => {
+    if (DEMO_MODE) {
+      return { success: true, data: [] };
+    }
     const response = await api.get('/prices/my-approvals', { params });
     return response.data;
   },
 
   getSupermarketPrices: async (supermarketId: string, params?: { page?: number; limit?: number }): Promise<ApiResponse<PriceHistory[]>> => {
+    if (DEMO_MODE) {
+      return { success: true, data: [] };
+    }
     const response = await api.get(`/prices/supermarket/${supermarketId}`, { params });
     return response.data;
   },

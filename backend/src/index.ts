@@ -26,8 +26,9 @@ app.use(compression());
 app.use(cors({
   origin: [
     'http://localhost:3001',
-    'http://192.168.1.24:3001',
-    'https://lowmoney-web.azurestaticapps.net'
+    'http://192.168.1.24:3001', 
+    'https://lowmoney-web.azurestaticapps.net',
+    'https://abongiorno.github.io'
   ],
   credentials: true
 }));

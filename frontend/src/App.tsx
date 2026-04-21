@@ -12,9 +12,16 @@ import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
 import ApprovalPage from './pages/ApprovalPage';
 import LoadingSpinner from './components/LoadingSpinner';
+import { demoApi } from './services/demoApiService';
+import { useEffect } from 'react';
 
 function App() {
   const { user, isLoading } = useAuth();
+
+  // Initialize demo data on app start
+  useEffect(() => {
+    demoApi.initDemoData();
+  }, []);
 
   if (isLoading) {
     return <LoadingSpinner />;
