@@ -1,4 +1,4 @@
-import React from 'react';
+// React import removed for TypeScript compliance
 import { Box, CircularProgress, Typography } from '@mui/material';
 
 interface LoadingSpinnerProps {

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Container, Typography, Paper, Box, Grid, Card, CardContent } from '@mui/material';
+import { Container, Typography, Paper, Grid, Card, CardContent } from '@mui/material';
 import { AdminPanelSettings, People, CheckCircle, Assignment } from '@mui/icons-material';
 
 function AdminPage() {

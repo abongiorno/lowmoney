@@ -1,4 +1,4 @@
-import React from 'react';
+// React import removed for TypeScript compliance
 import { Container, Typography, Paper, Box, Grid, Avatar, Button } from '@mui/material';
 import { Person, Edit } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';

@@ -1,4 +1,4 @@
-import React from 'react';
+// React import removed for TypeScript compliance
 import { Container, Typography, Paper, Box } from '@mui/material';
 import { useParams } from 'react-router-dom';
 
