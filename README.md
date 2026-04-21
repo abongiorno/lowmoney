@@ -2,6 +2,24 @@
 
 Una web app responsive per il censimento e il confronto dei prezzi di prodotti alimentari nei supermercati, con sistema di autenticazione utenti e ruoli gerarchici.
 
+## ✨ Architettura
+
+- **Frontend**: React TypeScript con Material-UI, Vite, React Query
+- **Backend**: Azure Functions (serverless) con TypeScript  
+- **Database**: Azure Cosmos DB (NoSQL)
+- **Hosting**: GitHub Pages (frontend) + Azure Functions (API)
+- **Autenticazione**: JWT con ruoli utente (user/approver/admin)
+- **Design**: Completamente responsive per PC/tablet/mobile
+
+## 🚀 Demo Live
+
+- **App**: https://abongiorno.github.io/lowmoney/
+- **API**: https://lowmoney-functions.azurewebsites.net/api
+
+### Credenziali Demo
+- **Utente**: `user@demo.com` / `password`  
+- **Admin**: `admin@demo.com` / `admin`
+
 ## 🚀 Funzionalità
 
 ### Prodotti

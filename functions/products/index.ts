@@ -65,7 +65,8 @@ async function getProducts(search: string | null, headers: any) {
     }
 
     const { resources: products } = await productsContainer.items
-        .query({ query, parameters })
+        .query('SELECT * FROM c WHERE c.isApproved = true',
+            { parameters })
         .fetchAll();
 
     return {
@@ -88,10 +89,8 @@ async function getProductByBarcode(barcode: string | null, headers: any) {
     }
 
     const { resources: products } = await productsContainer.items
-        .query({
-            query: 'SELECT * FROM c WHERE c.barcode = @barcode',
-            parameters: [{ name: '@barcode', value: barcode }]
-        })
+        .query('SELECT * FROM c WHERE c.barcode = @barcode',
+            { parameters: [{ name: '@barcode', value: barcode }] })
         .fetchAll();
 
     if (products.length === 0) {

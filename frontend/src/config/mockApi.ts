@@ -1,7 +1,7 @@
 // Azure Cosmos DB Configuration for LowMoney
 export const API_CONFIG = {
   // Azure Functions API endpoint
-  BASE_URL: 'https://lowmoney-functions.azurewebsites.net/api', // Azure Functions URL
+  BASE_URL: 'https://lowmoney-functions.azurewebsites.net/api',
   ENDPOINTS: {
     AUTH: {
       REGISTER: '/auth/register',
