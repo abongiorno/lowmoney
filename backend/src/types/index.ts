@@ -6,6 +6,7 @@ export interface User {
   lastName: string;
   role: UserRole;
   isActive: boolean;
+  isApproved: boolean;
   profileImage?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -22,12 +23,14 @@ export interface Product {
   name: string;
   barcode: string;
   category: string;
+  subcategory?: string;
   brand?: string;
   description?: string;
   image?: string;
   lowestPrice: number;
   lastUpdated: Date;
   isActive: boolean;
+  isApproved: boolean;
   createdBy: string;
   approvedBy?: string;
   createdAt: Date;
@@ -44,10 +47,12 @@ export interface Supermarket {
     latitude: number;
     longitude: number;
   };
+  chain?: string;
   image?: string;
   website?: string;
   phone?: string;
   isActive: boolean;
+  isApproved: boolean;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -94,3 +99,6 @@ export interface ApiResponse<T> {
   message?: string;
   errors?: string[];
 }
+
+// Alias for Price - used in mockService
+export type PriceEntry = Price;

@@ -1,9 +1,15 @@
-import { Pool, PoolClient } from 'pg';
+import { CosmosClient, Database, Container } from '@azure/cosmos';
 import { logger } from '../utils/logger';
 import { mockService } from '../services/mockService';
 
 export interface DatabaseConfig {
-  pool: Pool;
+  containers: {
+    users: Container;
+    products: Container;
+    supermarkets: Container;
+    prices: Container;
+    priceHistory: Container;
+  };
   isDemo?: boolean;
 }
 
@@ -14,133 +20,66 @@ export async function connectToDatabase(): Promise<DatabaseConfig> {
     return dbConfig;
   }
 
-  const databaseUrl = process.env.DATABASE_URL;
+  const endpoint = process.env.COSMOS_ENDPOINT;
+  const key = process.env.COSMOS_KEY;
+  const databaseName = process.env.COSMOS_DATABASE_NAME;
 
   // Check if we're in demo mode (no database credentials)
-  if (!databaseUrl) {
-    logger.warn('Database URL not provided. Running in DEMO mode with mock data.');
+  if (!endpoint || !key || key === 'your-primary-key-here') {
+    logger.warn('Cosmos DB credentials not provided. Running in DEMO mode with mock data.');
     return createDemoConfig();
   }
 
-  const pool = new Pool({
-    connectionString: databaseUrl,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-  });
-
   try {
-    // Test the connection
-    const client = await pool.connect();
-    logger.info('Successfully connected to PostgreSQL database');
+    // Create Cosmos client
+    const client = new CosmosClient({ endpoint, key });
     
-    // Create tables if they don't exist
-    await createTables(client);
-    client.release();
+    // Get database reference
+    const database = client.database(databaseName || 'lowmoney');
+    
+    // Test the connection by reading database properties
+    await database.read();
+    logger.info('Successfully connected to Azure Cosmos DB');
+    
+    // Get container references
+    const containers = {
+      users: database.container('users'),
+      products: database.container('products'),
+      supermarkets: database.container('supermarkets'),
+      prices: database.container('prices'),
+      priceHistory: database.container('priceHistory')
+    };
 
-    dbConfig = { pool };
+    // Verify containers exist
+    await verifyContainers(containers);
+
+    dbConfig = { containers };
     return dbConfig;
   } catch (error) {
-    logger.error('Failed to connect to PostgreSQL database:', error);
+    logger.error('Failed to connect to Azure Cosmos DB:', error);
     logger.warn('Falling back to DEMO mode with mock data.');
     return createDemoConfig();
   }
 }
 
-async function createTables(client: PoolClient): Promise<void> {
-  const createUsersTable = `
-    CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      email VARCHAR(255) UNIQUE NOT NULL,
-      password VARCHAR(255) NOT NULL,
-      first_name VARCHAR(100) NOT NULL,
-      last_name VARCHAR(100) NOT NULL,
-      role VARCHAR(20) DEFAULT 'user',
-      is_active BOOLEAN DEFAULT true,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
-
-  const createSupermarketsTable = `
-    CREATE TABLE IF NOT EXISTS supermarkets (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      name VARCHAR(255) NOT NULL,
-      location VARCHAR(500),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
-
-  const createProductsTable = `
-    CREATE TABLE IF NOT EXISTS products (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      name VARCHAR(255) NOT NULL,
-      description TEXT,
-      category VARCHAR(100),
-      brand VARCHAR(100),
-      barcode VARCHAR(50),
-      image_url VARCHAR(500),
-      is_approved BOOLEAN DEFAULT false,
-      created_by UUID REFERENCES users(id),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
-
-  const createPricesTable = `
-    CREATE TABLE IF NOT EXISTS prices (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      product_id UUID REFERENCES products(id) ON DELETE CASCADE,
-      supermarket_id UUID REFERENCES supermarkets(id) ON DELETE CASCADE,
-      price DECIMAL(10,2) NOT NULL,
-      discount_price DECIMAL(10,2),
-      is_on_sale BOOLEAN DEFAULT false,
-      reported_by UUID REFERENCES users(id),
-      is_verified BOOLEAN DEFAULT false,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
-
-  const createPriceHistoryTable = `
-    CREATE TABLE IF NOT EXISTS price_history (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      product_id UUID REFERENCES products(id) ON DELETE CASCADE,
-      supermarket_id UUID REFERENCES supermarkets(id) ON DELETE CASCADE,
-      old_price DECIMAL(10,2) NOT NULL,
-      new_price DECIMAL(10,2) NOT NULL,
-      changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
-
-  const createIndexes = `
-    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
-    CREATE INDEX IF NOT EXISTS idx_prices_product_supermarket ON prices(product_id, supermarket_id);
-    CREATE INDEX IF NOT EXISTS idx_price_history_product ON price_history(product_id);
-  `;
-
+async function verifyContainers(containers: any): Promise<void> {
   try {
-    await client.query(createUsersTable);
-    await client.query(createSupermarketsTable);
-    await client.query(createProductsTable);
-    await client.query(createPricesTable);
-    await client.query(createPriceHistoryTable);
-    await client.query(createIndexes);
-    
-    logger.info('Database tables created/verified successfully');
+    // Try to read from each container to verify they exist
+    const containerNames = Object.keys(containers);
+    for (const name of containerNames) {
+      await containers[name].read();
+      logger.info(`Verified container: ${name}`);
+    }
   } catch (error) {
-    logger.error('Error creating database tables:', error);
-    throw error;
+    logger.warn('Some containers may not exist yet:', error);
+    // Don't throw error - containers might be created on first use
   }
 }
 
 function createDemoConfig(): DatabaseConfig {
   logger.info('Creating demo database configuration');
   return {
-    pool: null as any, // Mock pool for demo mode
+    containers: null as any, // Mock containers for demo mode
     isDemo: true
   };
 }

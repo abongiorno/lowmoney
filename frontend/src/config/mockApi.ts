@@ -32,6 +32,8 @@ export const API_CONFIG = {
 };
 
 // For demo purposes, we'll use localStorage for auth
+import { UserRole } from '../types';
+
 export const DEMO_MODE = true;
 
 export const DEMO_USERS = [
@@ -41,7 +43,10 @@ export const DEMO_USERS = [
     password: 'password', 
     firstName: 'Mario',
     lastName: 'Rossi',
-    role: 'user'
+    role: UserRole.USER,
+    isActive: true,
+    createdAt: '2026-04-01T00:00:00Z',
+    updatedAt: '2026-04-01T00:00:00Z'
   },
   {
     id: '2',
@@ -49,7 +54,10 @@ export const DEMO_USERS = [
     password: 'admin',
     firstName: 'Admin',
     lastName: 'LowMoney',
-    role: 'admin'
+    role: UserRole.ADMIN,
+    isActive: true,
+    createdAt: '2026-04-01T00:00:00Z',
+    updatedAt: '2026-04-01T00:00:00Z'
   }
 ];
 

@@ -1,184 +1,271 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { CosmosClient } from '@azure/cosmos';
 import * as bcrypt from 'bcryptjs';
-import * as jwt from 'jsonwebtoken';
+import * as Joi from 'joi';
+import { v4 as uuidv4 } from 'uuid';
+import { usersContainer } from '../shared/cosmos';
+import { handleCorsPreFlight, setCorsHeaders } from '../shared/cors';
+import { verifyToken, signToken, AuthError } from '../shared/auth';
 
-// Initialize Cosmos DB client
-const cosmosClient = new CosmosClient(process.env.COSMOS_DB_CONNECTION!);
-const database = cosmosClient.database(process.env.COSMOS_DB_DATABASE || 'lowmoney');
-const usersContainer = database.container('users');
+// Validation schemas
+const registerSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(6).required(),
+  firstName: Joi.string().min(2).required(),
+  lastName: Joi.string().min(2).required()
+});
+
+const loginSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().required()
+});
 
 export async function authFunction(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log(`Auth function processed request for url "${request.url}"`);
 
-    // Enable CORS
-    const headers = {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': process.env.CORS_ORIGINS || '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-    };
+    // Handle CORS preflight
+    const corsResponse = handleCorsPreFlight(request);
+    if (corsResponse) return corsResponse;
 
-    if (request.method === 'OPTIONS') {
-        return { status: 200, headers };
-    }
+    const response: HttpResponseInit = {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+    };
 
     try {
         const action = request.params.action || 'login';
-        const body = await request.json() as any;
 
         switch (action) {
             case 'login':
-                return await handleLogin(body, headers);
+                if (request.method !== 'POST') {
+                    response.status = 405;
+                    response.body = JSON.stringify({ success: false, message: 'Method not allowed' });
+                    break;
+                }
+                return await handleLogin(request, response);
+            
             case 'register':
-                return await handleRegister(body, headers);
+                if (request.method !== 'POST') {
+                    response.status = 405;
+                    response.body = JSON.stringify({ success: false, message: 'Method not allowed' });
+                    break;
+                }
+                return await handleRegister(request, response);
+            
+            case 'me':
+                if (request.method !== 'GET') {
+                    response.status = 405;
+                    response.body = JSON.stringify({ success: false, message: 'Method not allowed' });
+                    break;
+                }
+                return await handleGetMe(request, response);
+            
             default:
-                return {
-                    status: 404,
-                    headers,
-                    body: JSON.stringify({ success: false, message: 'Action not found' })
-                };
+                response.status = 404;
+                response.body = JSON.stringify({ success: false, message: 'Action not found' });
         }
+
+        setCorsHeaders(request, response);
+        return response;
     } catch (error) {
         context.error('Auth function error:', error);
-        return {
-            status: 500,
-            headers,
-            body: JSON.stringify({ success: false, message: 'Internal server error' })
-        };
+        response.status = 500;
+        response.body = JSON.stringify({ success: false, message: 'Internal server error' });
+        setCorsHeaders(request, response);
+        return response;
     }
 }
 
-async function handleLogin(body: any, headers: any) {
-    const { email, password } = body;
-
-    if (!email || !password) {
-        return {
-            status: 400,
-            headers,
-            body: JSON.stringify({ success: false, message: 'Email and password required' })
-        };
-    }
-
-    // Query user by email
-    const { resources: users } = await usersContainer.items
-        .query({
-            query: 'SELECT * FROM c WHERE c.email = @email',
-            parameters: [{ name: '@email', value: email }]
-        })
-        .fetchAll();
-
-    if (users.length === 0) {
-        return {
-            status: 401,
-            headers,
-            body: JSON.stringify({ success: false, message: 'Invalid credentials' })
-        };
-    }
-
-    const user = users[0];
-    const isValidPassword = await bcrypt.compare(password, user.password);
-
-    if (!isValidPassword) {
-        return {
-            status: 401,
-            headers,
-            body: JSON.stringify({ success: false, message: 'Invalid credentials' })
-        };
-    }
-
-    // Create JWT token
-    const token = jwt.sign(
-        { userId: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET!,
-        { expiresIn: '7d' }
-    );
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
-
-    return {
-        status: 200,
-        headers,
-        body: JSON.stringify({
-            success: true,
-            data: {
-                user: userWithoutPassword,
-                token
-            }
-        })
-    };
-}
-
-async function handleRegister(body: any, headers: any) {
-    const { email, password, firstName, lastName } = body;
-
-    if (!email || !password || !firstName || !lastName) {
-        return {
-            status: 400,
-            headers,
-            body: JSON.stringify({ 
+async function handleLogin(request: HttpRequest, response: HttpResponseInit): Promise<HttpResponseInit> {
+    try {
+        const body = await request.json() as any;
+        
+        // Validate input
+        const { error } = loginSchema.validate(body);
+        if (error) {
+            response.status = 400;
+            response.body = JSON.stringify({ 
                 success: false, 
-                message: 'Email, password, firstName, and lastName are required' 
+                message: error.details[0].message 
+            });
+            setCorsHeaders(request, response);
+            return response;
+        }
+
+        const { email, password } = body;
+
+        // Query user by email (include isApproved check)
+        const { resources: users } = await usersContainer.items
+            .query({
+                query: 'SELECT * FROM c WHERE c.email = @email AND c.isApproved = true',
+                parameters: [{ name: '@email', value: email }]
             })
-        };
-    }
+            .fetchAll();
 
-    // Check if user already exists
-    const { resources: existingUsers } = await usersContainer.items
-        .query({
-            query: 'SELECT * FROM c WHERE c.email = @email',
-            parameters: [{ name: '@email', value: email }]
-        })
-        .fetchAll();
+        if (users.length === 0) {
+            response.status = 401;
+            response.body = JSON.stringify({ success: false, message: 'Invalid credentials' });
+            setCorsHeaders(request, response);
+            return response;
+        }
 
-    if (existingUsers.length > 0) {
-        return {
-            status: 400,
-            headers,
-            body: JSON.stringify({ success: false, message: 'User already exists' })
-        };
-    }
+        const user = users[0];
+        const isValidPassword = await bcrypt.compare(password, user.password);
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+        if (!isValidPassword) {
+            response.status = 401;
+            response.body = JSON.stringify({ success: false, message: 'Invalid credentials' });
+            setCorsHeaders(request, response);
+            return response;
+        }
 
-    // Create new user
-    const newUser = {
-        id: `user_${Date.now()}`,
-        email,
-        password: hashedPassword,
-        firstName,
-        lastName,
-        role: 'user',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    };
+        // Create JWT token
+        const token = signToken({
+            userId: user.id,
+            email: user.email,
+            role: user.role
+        });
 
-    await usersContainer.items.create(newUser);
+        // Remove password from response
+        const { password: _, ...userWithoutPassword } = user;
 
-    // Create JWT token
-    const token = jwt.sign(
-        { userId: newUser.id, email: newUser.email, role: newUser.role },
-        process.env.JWT_SECRET!,
-        { expiresIn: '7d' }
-    );
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = newUser;
-
-    return {
-        status: 201,
-        headers,
-        body: JSON.stringify({
+        response.status = 200;
+        response.body = JSON.stringify({
             success: true,
             data: {
                 user: userWithoutPassword,
                 token
             }
-        })
-    };
+        });
+
+        setCorsHeaders(request, response);
+        return response;
+    } catch (error) {
+        response.status = 500;
+        response.body = JSON.stringify({ success: false, message: 'Login failed' });
+        setCorsHeaders(request, response);
+        return response;
+    }
+}
+
+async function handleRegister(request: HttpRequest, response: HttpResponseInit): Promise<HttpResponseInit> {
+    try {
+        const body = await request.json() as any;
+        
+        // Validate input
+        const { error } = registerSchema.validate(body);
+        if (error) {
+            response.status = 400;
+            response.body = JSON.stringify({ 
+                success: false, 
+                message: error.details[0].message 
+            });
+            setCorsHeaders(request, response);
+            return response;
+        }
+
+        const { email, password, firstName, lastName } = body;
+
+        // Check if user already exists
+        const { resources: existingUsers } = await usersContainer.items
+            .query({
+                query: 'SELECT * FROM c WHERE c.email = @email',
+                parameters: [{ name: '@email', value: email }]
+            })
+            .fetchAll();
+
+        if (existingUsers.length > 0) {
+            response.status = 400;
+            response.body = JSON.stringify({ success: false, message: 'User already exists' });
+            setCorsHeaders(request, response);
+            return response;
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        // Create new user (with isApproved: false by default)
+        const newUser = {
+            id: uuidv4(),
+            email,
+            password: hashedPassword,
+            firstName,
+            lastName,
+            role: 'user' as const,
+            isActive: true,
+            isApproved: false, // Requires approval
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
+
+        await usersContainer.items.create(newUser);
+
+        // Create JWT token
+        const token = signToken({
+            userId: newUser.id,
+            email: newUser.email,
+            role: newUser.role
+        });
+
+        // Remove password from response
+        const { password: _, ...userWithoutPassword } = newUser;
+
+        response.status = 201;
+        response.body = JSON.stringify({
+            success: true,
+            data: {
+                user: userWithoutPassword,
+                token
+            },
+            message: 'User registered successfully. Account pending approval.'
+        });
+
+        setCorsHeaders(request, response);
+        return response;
+    } catch (error) {
+        response.status = 500;
+        response.body = JSON.stringify({ success: false, message: 'Registration failed' });
+        setCorsHeaders(request, response);
+        return response;
+    }
+}
+
+async function handleGetMe(request: HttpRequest, response: HttpResponseInit): Promise<HttpResponseInit> {
+    try {
+        // Verify JWT token
+        const user = verifyToken(request);
+
+        // Get user from database
+        const { resource: userDoc } = await usersContainer.item(user.userId, user.email).read();
+
+        if (!userDoc) {
+            response.status = 404;
+            response.body = JSON.stringify({ success: false, message: 'User not found' });
+            setCorsHeaders(request, response);
+            return response;
+        }
+
+        // Remove password from response
+        const { password, ...userWithoutPassword } = userDoc;
+
+        response.status = 200;
+        response.body = JSON.stringify({
+            success: true,
+            data: userWithoutPassword
+        });
+
+        setCorsHeaders(request, response);
+        return response;
+    } catch (error) {
+        if (error instanceof AuthError) {
+            response.status = error.statusCode;
+            response.body = JSON.stringify({ success: false, message: error.message });
+        } else {
+            response.status = 500;
+            response.body = JSON.stringify({ success: false, message: 'Failed to get user data' });
+        }
+        setCorsHeaders(request, response);
+        return response;
+    }
 }
 
 app.http('auth', {

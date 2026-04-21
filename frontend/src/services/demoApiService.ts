@@ -1,9 +1,8 @@
-import { DEMO_MODE, DEMO_USERS, DEMO_PRODUCTS, DEMO_SUPERMARKETS, DEMO_PRICES } from '../config/mockApi';
+import { DEMO_USERS, DEMO_PRODUCTS, DEMO_SUPERMARKETS, DEMO_PRICES } from '../config/mockApi';
 
 // Demo API Service using localStorage
 export class DemoApiService {
   private static instance: DemoApiService;
-  private currentUser: any = null;
 
   static getInstance(): DemoApiService {
     if (!DemoApiService.instance) {
@@ -54,7 +53,6 @@ export class DemoApiService {
     }
 
     const token = btoa(JSON.stringify({ id: user.id, email: user.email }));
-    this.currentUser = user;
     localStorage.setItem('lowmoney_token', token);
     
     return {
@@ -83,7 +81,6 @@ export class DemoApiService {
 
   logout() {
     localStorage.removeItem('lowmoney_token');
-    this.currentUser = null;
   }
 
   // Products API
@@ -140,7 +137,7 @@ export class DemoApiService {
     };
   }
 
-  async getNearbySupermarkets(lat: number, lng: number, radius: number = 5) {
+  async getNearbySupermarkets(_lat: number, _lng: number, radius: number = 5) {
     const supermarkets = JSON.parse(localStorage.getItem('lowmoney_supermarkets') || '[]');
     
     // Simple distance calculation (for demo)
