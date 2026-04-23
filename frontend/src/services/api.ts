@@ -21,8 +21,8 @@ const DEMO_MODE = false;
 // Create axios instance for when we have real backend
 const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168');
 const baseURL = isDevelopment 
-  ? 'http://192.168.1.24:5001/api'
-  : 'https://lowmoneyapp.azurewebsites.net/api';
+  ? 'http://localhost:7071/api'
+  : '/api';
 
 const api: AxiosInstance = axios.create({
   baseURL,
