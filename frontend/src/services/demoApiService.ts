@@ -22,10 +22,22 @@ export class DemoApiService {
     if (!localStorage.getItem('lowmoney_prices')) {
       localStorage.setItem('lowmoney_prices', JSON.stringify(DEMO_PRICES));
     }
+    if (!localStorage.getItem('lowmoney_users')) {
+      localStorage.setItem('lowmoney_users', JSON.stringify([]));
+    }
   }
 
   // Auth API
   async register(userData: any) {
+    // Check if email already exists
+    const registeredUsers = JSON.parse(localStorage.getItem('lowmoney_users') || '[]');
+    const allUsers = [...DEMO_USERS, ...registeredUsers];
+    const existingUser = allUsers.find(u => u.email === userData.email);
+    
+    if (existingUser) {
+      throw new Error('Email già registrata');
+    }
+
     const newUser = {
       id: Date.now().toString(),
       ...userData,
@@ -33,8 +45,13 @@ export class DemoApiService {
       createdAt: new Date().toISOString()
     };
 
-    // Add to demo users (in real app would be sent to server)
+    // Add user to localStorage for persistence
+    const updatedUsers = [...registeredUsers, newUser];
+    localStorage.setItem('lowmoney_users', JSON.stringify(updatedUsers));
+
+    // Create and save token
     const token = btoa(JSON.stringify({ id: newUser.id, email: newUser.email }));
+    localStorage.setItem('token', token);
     
     return {
       success: true,
@@ -46,14 +63,17 @@ export class DemoApiService {
   }
 
   async login(email: string, password: string) {
-    const user = DEMO_USERS.find(u => u.email === email && u.password === password);
+    // Check both demo users and registered users
+    const registeredUsers = JSON.parse(localStorage.getItem('lowmoney_users') || '[]');
+    const allUsers = [...DEMO_USERS, ...registeredUsers];
+    const user = allUsers.find(u => u.email === email && u.password === password);
     
     if (!user) {
       throw new Error('Credenziali non valide');
     }
 
     const token = btoa(JSON.stringify({ id: user.id, email: user.email }));
-    localStorage.setItem('lowmoney_token', token);
+    localStorage.setItem('token', token);
     
     return {
       success: true,
@@ -65,11 +85,14 @@ export class DemoApiService {
   }
 
   async getProfile() {
-    const token = localStorage.getItem('lowmoney_token');
+    const token = localStorage.getItem('token');
     if (!token) throw new Error('Non autenticato');
 
     const userData = JSON.parse(atob(token));
-    const user = DEMO_USERS.find(u => u.id === userData.id);
+    // Check both demo users and registered users
+    const registeredUsers = JSON.parse(localStorage.getItem('lowmoney_users') || '[]');
+    const allUsers = [...DEMO_USERS, ...registeredUsers];
+    const user = allUsers.find(u => u.id === userData.id);
     
     if (!user) throw new Error('Utente non trovato');
     
@@ -80,7 +103,7 @@ export class DemoApiService {
   }
 
   logout() {
-    localStorage.removeItem('lowmoney_token');
+    localStorage.removeItem('token');
   }
 
   // Products API
