@@ -273,7 +273,7 @@ function SupermarketsPage() {
                           <Typography variant="body2" color="text.secondary" sx={{ ml: 3 }}>
                             {supermarket.city}
                             {supermarket.distance && (
-                              <> • {supermarket.distance.toFixed(1)} km</>
+                              <> • {supermarket.distance?.toFixed(1) ?? '0.0'} km</>
                             )}
                           </Typography>
                         </Box>

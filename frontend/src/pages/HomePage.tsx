@@ -223,7 +223,7 @@ function HomePage() {
                           </Typography>
                           <Box mt={1}>
                             <Chip
-                              label={`€${product.lowestPrice.toFixed(2)}`}
+                              label={`€${product.lowestPrice?.toFixed(2) ?? '0.00'}`}
                               color="primary"
                               size="small"
                               icon={<TrendingDown />}
@@ -279,7 +279,7 @@ function HomePage() {
                           <Typography variant="caption" color="text.secondary">
                             {supermarket.city}
                             {supermarket.distance && (
-                              <> • {supermarket.distance.toFixed(1)} km</>
+                              <> • {supermarket.distance?.toFixed(1) ?? '0.0'} km</>
                             )}
                           </Typography>
                         </Box>

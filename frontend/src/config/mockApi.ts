@@ -70,8 +70,13 @@ export const DEMO_PRODUCTS = [
     brand: 'Barilla',
     barcode: '8076809513845',
     imageUrl: 'https://via.placeholder.com/200',
+    lowestPrice: 1.29,
+    lastUpdated: '2026-04-24T00:00:00Z',
+    isActive: true,
     isApproved: true,
-    createdBy: '1'
+    createdBy: '1',
+    createdAt: '2026-04-01T00:00:00Z',
+    updatedAt: '2026-04-01T00:00:00Z'
   },
   {
     id: '2', 
@@ -81,8 +86,13 @@ export const DEMO_PRODUCTS = [
     brand: 'Parmalat',
     barcode: '8000300123456',
     imageUrl: 'https://via.placeholder.com/200',
+    lowestPrice: 1.49,
+    lastUpdated: '2026-04-24T00:00:00Z',
+    isActive: true,
     isApproved: true,
-    createdBy: '1'
+    createdBy: '1',
+    createdAt: '2026-04-01T00:00:00Z',
+    updatedAt: '2026-04-01T00:00:00Z'
   }
 ];
 

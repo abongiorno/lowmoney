@@ -208,7 +208,7 @@ function ProductsPage() {
 
                       <Box display="flex" justifyContent="space-between" alignItems="center">
                         <Chip
-                          label={`€${product.lowestPrice.toFixed(2)}`}
+                          label={`€${product.lowestPrice?.toFixed(2) ?? '0.00'}`}
                           color="primary"
                           size="small"
                           icon={<TrendingDown />}
