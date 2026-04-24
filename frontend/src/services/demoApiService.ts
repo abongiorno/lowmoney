@@ -66,22 +66,14 @@ export class DemoApiService {
     // Check both demo users and registered users
     const registeredUsers = JSON.parse(localStorage.getItem('lowmoney_users') || '[]');
     const allUsers = [...DEMO_USERS, ...registeredUsers];
-    
-    console.log('Debug login - searching for:', email, password);
-    console.log('Demo users:', DEMO_USERS);
-    console.log('All users:', allUsers);
-    
     const user = allUsers.find(u => u.email === email && u.password === password);
     
     if (!user) {
-      console.log('User not found!');
       throw new Error('Credenziali non valide');
     }
 
-    console.log('User found:', user);
     const token = btoa(JSON.stringify({ id: user.id, email: user.email }));
     localStorage.setItem('token', token);
-    console.log('Token saved:', token);
     
     return {
       success: true,
@@ -94,34 +86,24 @@ export class DemoApiService {
 
   async getProfile() {
     const token = localStorage.getItem('token');
-    if (!token) {
-      console.log('No token found in getProfile');
-      throw new Error('Non autenticato');
-    }
+    if (!token) throw new Error('Non autenticato');
 
     try {
       const userData = JSON.parse(atob(token));
-      console.log('Decoded token data:', userData);
       
       // Check both demo users and registered users
       const registeredUsers = JSON.parse(localStorage.getItem('lowmoney_users') || '[]');
       const allUsers = [...DEMO_USERS, ...registeredUsers];
-      console.log('Looking for user ID:', userData.id, 'in users:', allUsers);
       
       const user = allUsers.find(u => u.id === userData.id);
       
-      if (!user) {
-        console.log('User not found by ID!');
-        throw new Error('Utente non trovato');
-      }
+      if (!user) throw new Error('Utente non trovato');
       
-      console.log('Profile found:', user);
       return {
         success: true,
         data: { ...user, password: undefined }
       };
     } catch (error) {
-      console.error('Error in getProfile:', error);
       throw new Error('Token non valido');
     }
   }

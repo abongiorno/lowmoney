@@ -24,54 +24,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     const initAuth = async () => {
-      console.log('InitAuth started');
       const savedToken = localStorage.getItem('token');
-      console.log('Saved token:', savedToken);
-      
       if (savedToken) {
         try {
-          console.log('Calling getCurrentUser...');
           const response = await authApi.getCurrentUser();
-          console.log('getCurrentUser response:', response);
-          
           if (response.success && response.data) {
             setUser(response.data);
             setToken(savedToken);
-            console.log('User set:', response.data);
           } else {
-            console.log('getCurrentUser failed, removing token');
             // Invalid token
             localStorage.removeItem('token');
             setToken(null);
           }
         } catch (error) {
-          console.error('Error in initAuth:', error);
           // Token expired or invalid
           localStorage.removeItem('token');
           setToken(null);
         }
       }
       setIsLoading(false);
-      console.log('InitAuth completed');
     };
 
     initAuth();
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
-    console.log('Login called with:', credentials);
     const response = await authApi.login(credentials);
-    console.log('Login response:', response);
-    
     if (response.success && response.data) {
       const { user, token } = response.data;
-      console.log('Setting user and token:', user, token);
       setUser(user);
       setToken(token);
       localStorage.setItem('token', token);
-      console.log('Login completed successfully');
     } else {
-      console.error('Login failed:', response);
       throw new Error(response.message || 'Login failed');
     }
   };
